@@ -15,6 +15,7 @@
  * 02-Dec-2015  - extensive cleanup - pulling in more common logging, MQTT and INI file libraries
  * 08-Dec-2015  - messing around with Git and AWS Code Commit
  * 14-Dec-2015  - still messing around with Git and AWS Code Commit
+ * 16-Dec-2015  - still messing around with Git and AWS Code Commit
  */
 #define _POSIX_SOURCE
 
