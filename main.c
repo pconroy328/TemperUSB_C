@@ -146,7 +146,7 @@ void    mqttPublish (double deviceTemp)
 // ------------------------------------------------------------------
 void     terminationHandler (int signalValue)
 {
-    Logger_LogDebug( "Termination Signal received..." );
+    Logger_LogDebug( "Termination Signal received...\n" );
     MQTT_Teardown( myMQTTInstance, NULL );
     exit( 1 );
 }
@@ -587,9 +587,9 @@ int main(int argc, char** argv)
     
     if (!skipIniFile) {
         readIniFile();
-        MQTT_InitializeFromINIFile( iniFileName, &myMQTTInstance );
+        MQTT_Connected = MQTT_InitializeFromINIFile( iniFileName, &myMQTTInstance );
     } else {
-        MQTT_Initialize( mqttServerName, mqttPort, &myMQTTInstance );
+        MQTT_Connected = MQTT_Initialize( mqttServerName, mqttPort, &myMQTTInstance );
     }
 
     usb_set_debug( 0 );
