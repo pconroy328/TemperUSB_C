@@ -1,0 +1,28 @@
+To fix the need to be root to run this code, install a udev rule.
+
+start with lsusb
+    Bus 002 Device 004: ID 1130:660c Tenx Technology, Inc. Foot Pedal/Thermometer
+
+Note Bus 002, Device 004
+
+Now run udevadm
+    root@pconroy-HP-Mini-210-2000:~# udevadm info -a -p $(udevadm info -q path -n /dev/bus/usb/002/004) > /home/pconroy/TemperUSB.data.txt
+
+This file will contain attributes you can use to write the udev rule.
+
+/etc/udev/rules.d/91_temperusb.rules
+
+Create a new file:
+    # Rules for Tenx Technology TemperUSB Device - so root is not required to access
+    SUBSYSTEM=="usb", ATTR{idVendor}=="1130", ATTR{idProduct}=="660c", OWNER="pconroy",GROUP="users", MODE="0660"
+
+Test with
+(Use the /devices/ path from the output of udevadm info command above)
+# udevadm test /devices/pci0000:00/0000:00:1d.0/usb2/2-2/2-2.2
+
+Somewhere in the output you should see:
+    Reading rules file: /etc/udev/rules.d/91_temperusb.rules
+    GROUP
+
+Execute the new rules with
+#udevadm trigger
