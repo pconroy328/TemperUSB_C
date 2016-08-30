@@ -70,6 +70,7 @@ static  char                *sensorName;
 
 
 static  int                 debug = FALSE;
+static  int                 debugLevel = 3;
 static  int                 skipIniFile = FALSE;
 
 char                        logFileName[ 256 ];
@@ -518,7 +519,7 @@ void    parseCommandLine (int argc, char *argv[])
     int     ch;
     opterr = 0;
 
-    while (( (ch = getopt( argc, argv, "xvn:c:r:s:i:s:m:t:f:a" )) != -1) && (ch != 255)) {
+    while (( (ch = getopt( argc, argv, "xvn:c:r:s:i:s:m:t:f:ad:" )) != -1) && (ch != 255)) {
         switch (ch) {
             case 'c':   compensationDegreesF = (double) atof( optarg );
                         break;
@@ -539,6 +540,8 @@ void    parseCommandLine (int argc, char *argv[])
             case 't':   mqttTopic = optarg;
                         break;
             case 'm':   mqttPort = atoi( optarg );
+                        break;
+            case 'd':   debugLevel = atoi( optarg );
                         break;
             case 'f':   strncpy( logFileName, optarg, sizeof( logFileName ) );
                         break;
@@ -599,7 +602,7 @@ int main(int argc, char** argv)
     printf( "TemperUSB Reader Version %s\n", version );
     parseCommandLine( argc, argv );
     
-    Logger_Initialize( "temperusb.log", 5 );  
+    Logger_Initialize( "temperusb.log", debugLevel );  
 
     
     if (!skipIniFile) {
