@@ -46,7 +46,7 @@
 
 
 
-static  char    *version = "v2.0 [Common Libraries]";
+static  char    *version = "v3.0 [JSON payload]";
 static  char    *defaultINIFileName = "TemperUSB.ini";
 static  char    iniFileName[ 1024 ];
 
@@ -84,6 +84,9 @@ static  int                 mqttRetainMsgs = FALSE;
 static  int                 mqttTimeOut = 300;
 
 static  int                 MQTT_Connected = FALSE;
+static  int                 prependTopicToPayload = FALSE;
+static  int                 topicVersion = 1;
+
 
 static  struct  mosquitto   *myMQTTInstance;
 
@@ -127,13 +130,21 @@ void    mqttPublish (double deviceTemp)
 
     //
     //  format it so it's easy to consume by mySQL YYYY-MM-DD HH:MM:SS
-    strftime( timeStr, sizeof timeStr, "%Y-%m-%d %H:%M:%S %z", tmp );
+    strftime( timeStr, sizeof timeStr, "%FT%T%z", tmp );
 
+    static  char    *jsonTemplate = "%s { "
+    "\"topic\":\"%s\","
+    "\"topicVersion\":%d,"
+    "\"datetime\":\"%s\","
+    "\"location\":\"%s\","
+    "\"temperature\":%.1f}";
+    
     
     memset( buffer, '\0', sizeof buffer );
-    int length = snprintf( buffer, sizeof buffer,
-                "%s | %s | %s | Temp %3.1f |",
+    int length = snprintf( buffer, sizeof buffer, jsonTemplate,
+                (prependTopicToPayload ? mqttTopic : ""),
                 mqttTopic,
+                topicVersion,
                 timeStr,
                 sensorName,
                 deviceTemp
@@ -279,6 +290,9 @@ void    help (void)
     puts( "    -t <topic>           use <topic> as the MQTT topic string" );
     puts( "    -z <seconds>         MQTT connection timeout setting" );
     puts( "    -f <fileName>        write debug and log data to this file" );
+    puts( "    -a                   add the MQTT Topic to the start of the JSON payload" );
+    
+    
     puts( "" );
     
     puts( "INI File parameters:");
@@ -504,7 +518,7 @@ void    parseCommandLine (int argc, char *argv[])
     int     ch;
     opterr = 0;
 
-    while (( (ch = getopt( argc, argv, "xvn:c:r:s:i:s:m:t:f:" )) != -1) && (ch != 255)) {
+    while (( (ch = getopt( argc, argv, "xvn:c:r:s:i:s:m:t:f:a" )) != -1) && (ch != 255)) {
         switch (ch) {
             case 'c':   compensationDegreesF = (double) atof( optarg );
                         break;
@@ -518,6 +532,8 @@ void    parseCommandLine (int argc, char *argv[])
                         break;
             case 'x':   skipIniFile = TRUE;
                         break;
+            case 'a':   prependTopicToPayload = TRUE;
+                        break;                        
             case 's':   mqttServerName = optarg;
                         break;
             case 't':   mqttTopic = optarg;
@@ -544,6 +560,7 @@ void    parseCommandLine (int argc, char *argv[])
         Logger_LogDebug( "  mqttTopic:              %s\n", mqttTopic );
         Logger_LogDebug( "  mqttPort:               %d\n", mqttPort );
         Logger_LogDebug( "  logFileName:            %s\n", logFileName );
+        Logger_LogDebug( "  prependTopicToPayload:  %s\n", (prependTopicToPayload ? "Yes" : "No" ) );
     }
 
 }
