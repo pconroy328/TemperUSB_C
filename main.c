@@ -16,6 +16,7 @@
  * 08-Dec-2015  - messing around with Git and AWS Code Commit
  * 14-Dec-2015  - still messing around with Git and AWS Code Commit
  * 16-Dec-2015  - still messing around with Git and AWS Code Commit
+ * 26-Jun-2020  - pulling out INI file stuff, adding mDNS
  */
 #define _POSIX_SOURCE
 
@@ -33,9 +34,9 @@
 #include <usb.h>
 
 #include "temperusb.h"
-#include <libmqtt_pmc.h>
-#include <liblogger_pmc.h>
-#include <libiniparser_pmc.h>
+#include <libmqttrv.h>
+#include <log4c.h>
+//#include <libiniparser_pmc.h>
 
 
 
@@ -46,9 +47,9 @@
 
 
 
-static  char    *version = "v3.0 [JSON payload]";
-static  char    *defaultINIFileName = "TemperUSB.ini";
-static  char    iniFileName[ 1024 ];
+static  char    *version = "v4.0 [Moving to RV]";
+//static  char    *defaultINIFileName = "TemperUSB.ini";
+//static  char    iniFileName[ 1024 ];
 
 
 //
@@ -88,8 +89,12 @@ static  int                 MQTT_Connected = FALSE;
 static  int                 prependTopicToPayload = FALSE;
 static  int                 topicVersion = 1;
 
+static  int                 mqttHostSpecified = FALSE;
+static  int                 debugValue = 5;
+static  char                mqttHost[ 1024 ];
 
-static  struct  mosquitto   *myMQTTInstance;
+static  struct  mosquitto   *aMosquittoInstance;
+
 
 
 
@@ -152,14 +157,14 @@ void    mqttPublish (double deviceTemp)
             );
 
     
-    MQTT_Publish( myMQTTInstance, mqttTopic, buffer, mqttQoS );   
+    MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, mqttQoS );   
 }
 
 // ------------------------------------------------------------------
 void     terminationHandler (int signalValue)
 {
     Logger_LogDebug( "Termination Signal received...\n" );
-    MQTT_Teardown( myMQTTInstance, NULL );
+    MQTT_Teardown( aMosquittoInstance, NULL );
     exit( 1 );
 }
 
@@ -170,6 +175,7 @@ int fileExists (const char * fileName)
     return (access( fileName, R_OK )  == 0 );
 }
 
+#if 0
 // ------------------------------------------------------------------
 char    *findIniFile (const char *fileName, int *found)
 {
@@ -275,6 +281,7 @@ void    readIniFile (void)
         Logger_LogError( "Was expecting an INI file but could not find it! Filename: [%s]\n", iniFileName );
     }
 }
+#endif
 
 // --------------------------------------------------------------------------
 void    help (void)
@@ -296,20 +303,6 @@ void    help (void)
     
     puts( "" );
     
-    puts( "INI File parameters:");
-  printf( "  Default INI File Name: [%s]\n", defaultINIFileName );
-    puts( "  [TemperUSB] - deviceName - assign a name to this device" );
-    puts( "  [TemperUSB] - tempAdjust - adjust temp by <+/- degrees F> (-c)" );
-    puts( "  [TemperUSB] - readInterval - time (seconds) between sampling (-r)" );
-    puts( "  [TemperUSB] - debug - (dis)/(en)able verbose debugging (-v)" );
-    puts( "  [TemperUSB] - MQTTServer - see dash s" );
-    puts( "  [TemperUSB] - MQTTTopic - see dash t" );
-    puts( "  [TemperUSB] - MQTTPort - see dash m" );
-    puts( "  [TemperUSB] - MQTTTimeOut - see dash z" );
-    puts( "  [TemperUSB] - MQTTQoS - MQTT Quality of Service: 0, 1 or 2" );
-    puts( "  [TemperUSB] - MQTTRetainMsgs - MQTT Retain Messages: True or False" );
-    puts( "  [TemperUSB] - logFile - write debug data to this file" );
-    
     puts( "" );
     puts( "Signals" );
     //puts( "  Sending USR1 causes the application to close, reset, reopen reread everything" );
@@ -326,10 +319,6 @@ void     sigUsr1Handler (int signalValue)
     //
     //
     fprintf( stderr, "Signal USR1 received - Stopping...\n" );
-    fprintf( stderr, "Reloading INI file data...\n" );
-    readIniFile();
-
-    fprintf( stderr, "Restarting everything...\n" );
     fprintf( stderr, "Done!\n" );
 }
 
@@ -523,8 +512,8 @@ void    parseCommandLine (int argc, char *argv[])
         switch (ch) {
             case 'c':   compensationDegreesF = (double) atof( optarg );
                         break;
-            case 'i':   strncpy( iniFileName, optarg, sizeof iniFileName );
-                        break;
+            //case 'i':   strncpy( iniFileName, optarg, sizeof iniFileName );
+            //            break;
             case 'r':   tempReadInterval = atoi( optarg );
                         break;
             case 'n':   sensorName =  optarg;
@@ -555,7 +544,6 @@ void    parseCommandLine (int argc, char *argv[])
     if (debug) {
         Logger_LogDebug( "After command line parsing\n" );
         Logger_LogDebug( "  compensationDegreesF:   %f\n", compensationDegreesF );
-        Logger_LogDebug( "  iniFileName:            %s\n", iniFileName );
         Logger_LogDebug( "  tempReadInterval:       %d\n", tempReadInterval );
         Logger_LogDebug( "  sensorName:             %s\n", sensorName );
         Logger_LogDebug( "  skipIniFile:            %s\n", (skipIniFile ? "Yes" : "No" ) );
@@ -597,21 +585,51 @@ int main(int argc, char** argv)
     //
     // Initialize values to some common, sensible defaults.
     sensorName = "TEMPERUSB";
-    strncpy( iniFileName, defaultINIFileName, sizeof iniFileName  );
+    //strncpy( iniFileName, defaultINIFileName, sizeof iniFileName  );
 
     printf( "TemperUSB Reader Version %s\n", version );
     parseCommandLine( argc, argv );
     
-    Logger_Initialize( "temperusb.log", debugLevel );  
-
+    Logger_Initialize( logFileName, debugValue );
+    Logger_LogWarning( "%s\n", version );
+    Logger_LogWarning( "libmqtrv version: %s\n", MQTT_GetLibraryVersion() );
     
-    if (!skipIniFile) {
-        readIniFile();
-        MQTT_Connected = MQTT_InitializeFromINIFile( iniFileName, &myMQTTInstance );
+    //
+    // If they passed in an MQTTHost (with the -q option) then do NOT use avahi to find
+    //  our broker.
+    //
+    if (!mqttHostSpecified) {
+        //
+        //  Not using -q - so find our broker using avahi
+        Logger_LogDebug( "mDNS - Looking for an MQTT Broker in the RV first [60 seconds max]\n" );
+        if (!MQTT_ConnectRV( &aMosquittoInstance, 60 )) {
+            Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -q option." );
+            Logger_Terminate();
+            return( EXIT_FAILURE );
+        }
+        
+        //
+        // If we made it this far - we've got one
+        strncpy( mqttHost, MQTT_GetCachedBrokerHostName(), sizeof mqttHost );
+        mqttPort = MQTT_GetCachedBrokerPortNumber();
+        Logger_LogInfo( "mDNS - Found an MQTT Broker on Host [%s], Port [%d]\n", mqttHost, mqttPort );
+     
+        //
+        // MQTT_ConnectRV and MQTT_Connect() call MQTT_Initialize
+        
     } else {
-        MQTT_Connected = MQTT_Initialize( mqttServerName, mqttPort, &myMQTTInstance );
+        Logger_LogDebug( "Direct Connect to specific broker- Looking for an MQTT Broker on Host [%s], Port [%d]\n", mqttHost, mqttPort );
+        
+        if (!MQTT_Initialize( mqttHost, mqttPort, &aMosquittoInstance )) {
+            Logger_LogFatal( "Could not find an MQTT Broker on Host [%s], Port [%d]\n", mqttHost, mqttPort );
+            Logger_Terminate();
+            return( EXIT_FAILURE );
+        }
     }
 
+    
+    
+    
     usb_set_debug( 0 );
     usb_init();
     usb_find_busses();
@@ -650,7 +668,7 @@ int main(int argc, char** argv)
         sleep( tempReadInterval );
     }       // while !done
 
-    MQTT_Teardown( myMQTTInstance, mqttTopic );
+    MQTT_Teardown( aMosquittoInstance, mqttTopic );
     Logger_Terminate();
 
     return EXIT_SUCCESS;
