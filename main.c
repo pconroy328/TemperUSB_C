@@ -48,15 +48,12 @@
 
 
 static  char    *version = "v4.0 [Moving to RV]";
-//static  char    *defaultINIFileName = "TemperUSB.ini";
-//static  char    iniFileName[ 1024 ];
-
 
 //
 //      compensation - number of degrees F to add or subtract from the
 //                     device readings to make it more accurate.
 //      My device seems about 1.5-2.5*F higher than the LaCrosse Ws2308
-static  double  compensationDegreesF = -1.5;
+static  double  compensationDegreesF = -10.0;
 
 
 //
@@ -65,33 +62,24 @@ static  double  compensationDegreesF = -1.5;
 static  int     tempReadInterval = 120;
 
 
-//
-//      sensor name - an identification that tells where this sensor is located
-static  char                *sensorName;
 
+static  int     debug = FALSE;
+static  int     debugLevel = 3;
+static  int     skipIniFile = FALSE;
 
-static  int                 debug = FALSE;
-static  int                 debugLevel = 3;
-static  int                 skipIniFile = FALSE;
+static  int     mqttPort = 1883;
+static  char    *mqttTopic = "TEMPER";
+//static  int     mqttQoS = 0;
+//static  int     mqttRetainMsgs = FALSE;
+//static  int                 mqttTimeOut = 300;
 
-char                        logFileName[ 256 ];
-static  int                 logFileOpen = FALSE;
-static  FILE                *logFile = NULL;
+static  int     MQTT_Connected = FALSE;
 
-static  char                *mqttServerName;
-static  int                 mqttPort = 1883;
-static  char                *mqttTopic;
-static  int                 mqttQoS = 0;
-static  int                 mqttRetainMsgs = FALSE;
-static  int                 mqttTimeOut = 300;
-
-static  int                 MQTT_Connected = FALSE;
-static  int                 prependTopicToPayload = FALSE;
-static  int                 topicVersion = 1;
-
-static  int                 mqttHostSpecified = FALSE;
-static  int                 debugValue = 5;
-static  char                mqttHost[ 1024 ];
+static  int     mqttHostSpecified = FALSE;
+static  int     debugValue = 5;
+static  char    mqttHost[ 1024 ];
+static  int     deviceNum = 1;
+static  char    location[ 1024 ];
 
 static  struct  mosquitto   *aMosquittoInstance;
 
@@ -125,7 +113,6 @@ void    mqttPublish (double deviceTemp)
 
     if (!MQTT_Connected) {
         Logger_LogDebug( "TEMPER: Error: Attempt to publish Weather Reading using MQTT. Broker not connected\n" );
-        fprintf( stderr, "TEMPER: Error: Attempt to publish Weather Reading using MQTT; Broker not connected\n" );
         return;
     }
 
@@ -138,9 +125,9 @@ void    mqttPublish (double deviceTemp)
     //  format it so it's easy to consume by mySQL YYYY-MM-DD HH:MM:SS
     strftime( timeStr, sizeof timeStr, "%FT%T%z", tmp );
 
-    static  char    *jsonTemplate = "%s { "
+    static  char    *jsonTemplate = "{ "
     "\"topic\":\"%s\","
-    "\"topicVersion\":%d,"
+    "\"deviceNum\":%d,"
     "\"datetime\":\"%s\","
     "\"location\":\"%s\","
     "\"temperature\":%.1f}";
@@ -148,16 +135,16 @@ void    mqttPublish (double deviceTemp)
     
     memset( buffer, '\0', sizeof buffer );
     int length = snprintf( buffer, sizeof buffer, jsonTemplate,
-                (prependTopicToPayload ? mqttTopic : ""),
                 mqttTopic,
-                topicVersion,
+                deviceNum,
                 timeStr,
-                sensorName,
+                location,
                 deviceTemp
             );
 
     
-    MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, mqttQoS );   
+    puts( buffer );
+    MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, 0 );   
 }
 
 // ------------------------------------------------------------------
@@ -168,137 +155,19 @@ void     terminationHandler (int signalValue)
     exit( 1 );
 }
 
-// ----------------------------------------------------------------------------
-static
-int fileExists (const char * fileName)
-{   
-    return (access( fileName, R_OK )  == 0 );
-}
-
-#if 0
-// ------------------------------------------------------------------
-char    *findIniFile (const char *fileName, int *found)
-{
-    char    buffer[ 1024 ];
-    
-    if (fileName == NULL) {
-        strncpy( buffer, defaultINIFileName, sizeof buffer );
-    
-        Logger_LogDebug( "No INI filename specified - using default value:" );
-        Logger_LogDebug( defaultINIFileName );
-    } else {
-        strncpy( buffer, fileName, sizeof buffer );
-    }
-    
-    //
-    // Can we find it?
-    if (fileExists( buffer ) ) {
-        strncpy( iniFileName, buffer, sizeof iniFileName );
-        *found = TRUE;
-        return iniFileName;
-    
-    } else {
-        //
-        // Not found - look in some other common places
-        // 1. Add "./INI/ and look again
-        strcpy( buffer, "./INI/" );
-        strncat( buffer, fileName, sizeof buffer );
-        if (fileExists( buffer ) ) {
-            strncpy( iniFileName, buffer, sizeof iniFileName );
-            *found = TRUE;
-            return iniFileName;
-        }
-        
-        //
-        // 2. Back up one and look for ../INI/...
-        strcpy( buffer, "../INI/" );
-        strncat( buffer, fileName, sizeof buffer );
-        if (fileExists( buffer ) ) {
-            strncpy( iniFileName, buffer, sizeof iniFileName );
-            *found = TRUE;
-            return iniFileName;
-        }
-        
-        //
-        // 3. Look in /usr/local/INI
-        strcpy( buffer, "/usr/local/INI/" );
-        strncat( buffer, fileName, sizeof buffer );
-        if (fileExists( buffer ) ) {
-            strncpy( iniFileName, buffer, sizeof iniFileName );
-            *found = TRUE;
-            return iniFileName;
-        }
-       
-        Logger_LogDebug( "Unable to find the INI file in any location" );
-        fprintf( stderr, "Unable to find the INI file in any location [%s]\n", fileName );
-        *found = FALSE;
-    }
-    
-    return defaultINIFileName;
-}
-
-// ---------------------------------------------------------------------------
-void    readIniFile (void)
-{
-    int     found = FALSE;
-    
-    findIniFile( iniFileName, &found );
-
-    if (found) {
-        dictionary  *iniDictionary = NULL;
-        iniDictionary = iniparser_load( iniFileName );
-
-        //
-        //  Debugging my new iniparser - it looks like a section : key pair is required/
-        //  Perhaps to use just a key (no section) prefix the get with just a ";"
-        //)
-        sensorName = iniparser_getstring( iniDictionary, "TemperUSB:deviceName", "TEMPERUSB" );
-        compensationDegreesF = iniparser_getdouble( iniDictionary, "TemperUSB:tempAdjust", compensationDegreesF );
-        tempReadInterval = iniparser_getint( iniDictionary, "TemperUSB:readInterval", tempReadInterval );
-        debug = iniparser_getboolean( iniDictionary, "TemperUSB:debug", FALSE );
-
-        mqttServerName = iniparser_getstring( iniDictionary, "MQTT:brokerHostName", "192.168.1.11" );
-        mqttPort = iniparser_getint( iniDictionary, "MQTT:brokerPortNum", 1883 );
-        mqttTopic = iniparser_getstring( iniDictionary, "MQTT:MQTTTopic", "TEMPERUSB" );
-        mqttQoS = iniparser_getint( iniDictionary, "MQTT:MQTTQoS", 0 );
-        mqttTimeOut = iniparser_getint( iniDictionary, "MQTT:MQTTTimeOut", 0 );
-        mqttRetainMsgs = iniparser_getboolean( iniDictionary, "MQTT:MQTTRetainMsgs", FALSE );
-    
-        if (debug) {
-            Logger_LogDebug( "After finding and reading the INI file\n" );
-            Logger_LogDebug( "  compensationDegreesF:   %f\n", compensationDegreesF );
-            Logger_LogDebug( "  iniFileName:            %s\n", iniFileName );
-            Logger_LogDebug( "  tempReadInterval:       %d\n", tempReadInterval );
-            Logger_LogDebug( "  sensorName:             %s\n", sensorName );
-            Logger_LogDebug( "  skipIniFile:            %s\n", (skipIniFile ? "Yes" : "No" ) );
-            Logger_LogDebug( "  brokerHostName:         %s\n", mqttServerName );
-            Logger_LogDebug( "  mqttTopic:              %s\n", mqttTopic );
-            Logger_LogDebug( "  brokerPortNum:          %d\n", mqttPort );
-            Logger_LogDebug( "  logFileName:            %s\n", logFileName );
-        }
-        
-    } else {
-        Logger_LogError( "Was expecting an INI file but could not find it! Filename: [%s]\n", iniFileName );
-    }
-}
-#endif
 
 // --------------------------------------------------------------------------
 void    help (void)
 {
     puts( "Options are:" );
     puts( "    -c <degrees F>       adjust temperature reading by  <+/- degrees F>");
+    puts( "    -n <ID>              assign an ID number to this device" );
+    puts( "    -s <Location>        assign a location to this device" );
+    puts( "    -v <depth>           enables verbose debugging 1..5" );
     puts( "    -r <seconds>         sets temperature reading interval to <second>, max of 255" );
-    puts( "    -n <ID>              assign an Name to this device" );
-    puts( "    -v                   enables verbose debugging" );
-    puts( "    -i <fileName>        pull INI parameters from this file" );
-    puts( "    -x                   ignore the INI file contents" );
-    puts( "    -s <server>          send MQTT data to this MQTT server, (eg '192.168.0.11')" );
+    puts( "    -h <server>          send MQTT data to this MQTT server" );
     puts( "    -m <mqtt port num>   use this port number for MQTT (eg 1883)" );
     puts( "    -t <topic>           use <topic> as the MQTT topic string" );
-    puts( "    -z <seconds>         MQTT connection timeout setting" );
-    puts( "    -f <fileName>        write debug and log data to this file" );
-    puts( "    -a                   add the MQTT Topic to the start of the JSON payload" );
     
     
     puts( "" );
@@ -309,18 +178,6 @@ void    help (void)
     //puts( "  Sending USR2 causes the application to read the INI file" );
     
 }   // help
-
-
-
-
-// ------------------------------------------------------------------
-void     sigUsr1Handler (int signalValue)
-{
-    //
-    //
-    fprintf( stderr, "Signal USR1 received - Stopping...\n" );
-    fprintf( stderr, "Done!\n" );
-}
 
 // -------------------------------------------------------------------------------------
 Temper *TemperCreate(struct usb_device *dev, int timeout, int debug)
@@ -488,6 +345,8 @@ int TemperGetTemperatureInC(Temper *t, double *tempC)
     temperature = (buf[ 1 ] & 0xFF) + (buf[ 0 ] << 8);
     temperature += 1152;                    // calibration value
     *tempC = temperature * (125.0 / 32000.0);
+    
+    printf( "............. %0.2f\n", *tempC );
     return 0;
 }
 
@@ -508,31 +367,25 @@ void    parseCommandLine (int argc, char *argv[])
     int     ch;
     opterr = 0;
 
-    while (( (ch = getopt( argc, argv, "xvn:c:r:s:i:s:m:t:f:ad:" )) != -1) && (ch != 255)) {
+    while (( (ch = getopt( argc, argv, "l:v:n:c:r:h:m:t:" )) != -1) && (ch != 255)) {
         switch (ch) {
             case 'c':   compensationDegreesF = (double) atof( optarg );
                         break;
-            //case 'i':   strncpy( iniFileName, optarg, sizeof iniFileName );
-            //            break;
             case 'r':   tempReadInterval = atoi( optarg );
                         break;
-            case 'n':   sensorName =  optarg;
+            case 'n':   deviceNum =  atoi( optarg );
+                        break;
+            case 'l':   strncpy( location, optarg, sizeof location );
                         break;
             case 'v':   debug = TRUE;
+                        debugLevel = atoi( optarg );
                         break;
-            case 'x':   skipIniFile = TRUE;
-                        break;
-            case 'a':   prependTopicToPayload = TRUE;
-                        break;                        
-            case 's':   mqttServerName = optarg;
+            case 'h':   strncpy( mqttHost, optarg, sizeof mqttHost );
+                        mqttHostSpecified = TRUE;   
                         break;
             case 't':   mqttTopic = optarg;
                         break;
             case 'm':   mqttPort = atoi( optarg );
-                        break;
-            case 'd':   debugLevel = atoi( optarg );
-                        break;
-            case 'f':   strncpy( logFileName, optarg, sizeof( logFileName ) );
                         break;
 
             default:    help();
@@ -540,57 +393,28 @@ void    parseCommandLine (int argc, char *argv[])
                         break;
         }
     }
-    
-    if (debug) {
-        Logger_LogDebug( "After command line parsing\n" );
-        Logger_LogDebug( "  compensationDegreesF:   %f\n", compensationDegreesF );
-        Logger_LogDebug( "  tempReadInterval:       %d\n", tempReadInterval );
-        Logger_LogDebug( "  sensorName:             %s\n", sensorName );
-        Logger_LogDebug( "  skipIniFile:            %s\n", (skipIniFile ? "Yes" : "No" ) );
-        Logger_LogDebug( "  mqttServerName:         %s\n", mqttServerName );
-        Logger_LogDebug( "  mqttTopic:              %s\n", mqttTopic );
-        Logger_LogDebug( "  mqttPort:               %d\n", mqttPort );
-        Logger_LogDebug( "  logFileName:            %s\n", logFileName );
-        Logger_LogDebug( "  prependTopicToPayload:  %s\n", (prependTopicToPayload ? "Yes" : "No" ) );
-    }
-
 }
-
 
 // --------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-
     int                 done = FALSE;
     double              tempC = 0.0;
     double              tempF = 0.0;
     Temper              *t = NULL;
     char                buf[ 256 ];
     int                 ret;
-    struct sigaction    sa;
-
-    //
-    // Install signal handlers so we exit gracefully
-    /* Set up the structure to specify the new action. */
-    sa.sa_handler = terminationHandler;
-    sigemptyset ( &sa.sa_mask );
-    sa.sa_flags = 0;
-
-    if (sigaction ( SIGINT, &sa, NULL ) == -1)
-        fprintf( stderr, "Unable to install SIGNINT handler!\n" );
-    if (sigaction ( SIGTERM, &sa, NULL ) == -1)
-        fprintf( stderr, "Unable to install SIGTERM handler!\n" );
-
 
     //
     // Initialize values to some common, sensible defaults.
-    sensorName = "TEMPERUSB";
-    //strncpy( iniFileName, defaultINIFileName, sizeof iniFileName  );
-
+    mqttTopic = "TEMPER";
+    strncpy( location , "RV", sizeof location );
+    deviceNum = 1;
+    
     printf( "TemperUSB Reader Version %s\n", version );
     parseCommandLine( argc, argv );
     
-    Logger_Initialize( logFileName, debugValue );
+    Logger_Initialize( "/tmp/temperusb.log", debugValue );
     Logger_LogWarning( "%s\n", version );
     Logger_LogWarning( "libmqtrv version: %s\n", MQTT_GetLibraryVersion() );
     
@@ -626,10 +450,8 @@ int main(int argc, char** argv)
             return( EXIT_FAILURE );
         }
     }
-
     
-    
-    
+    MQTT_Connected = TRUE;
     usb_set_debug( 0 );
     usb_init();
     usb_find_busses();
@@ -657,7 +479,7 @@ int main(int argc, char** argv)
             exit( 1 );
         }
 
-        //  Since I'm in the United States - lets convert to Farenheit too!
+        //  Since I'm in the United States - lets convert to Fahrenheit too!
         //      Tf = (9/5)*Tc+32; Tc = temperature in degrees Celsius, Tf = temperature in degrees Fahrenhei
         tempF = (((9.0 / 5.0) * tempC) + 32.0);
         tempF += compensationDegreesF;
