@@ -1,0 +1,18 @@
+[Unit]
+Description=TemperUSB Thermometer
+After=syslog.target
+
+[Service]
+Type=simple
+User=pconroy
+Group=pconroy
+WorkingDirectory=/home/pconroy/TemperUSB
+ExecStart=/home/pconroy/Dropbox/NetBeansProjects/TemperUSB/dist/Debug/GNU-Linux/temperusb -h mqttrv.local -n 1 -l rvcabin
+StandardOutput=null
+StandardError=null
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=default.target
+
