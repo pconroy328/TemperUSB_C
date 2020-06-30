@@ -4,10 +4,10 @@ After=syslog.target
 
 [Service]
 Type=simple
-User=pconroy
-Group=pconroy
-WorkingDirectory=/home/pconroy/TemperUSB
-ExecStart=/home/pconroy/TemperUSB/dist/Debug/GNU-Linux/temperusb -h mqttrv.local -n 1 -l rvcabin
+User=root
+Group=root
+WorkingDirectory=/home/pconroy/TemperUSB_C
+ExecStart=/home/pconroy/TemperUSB_C/dist/Debug/GNU-Linux/temperusb -h mqttrv.local -n 1 -l rvcabin
 StandardOutput=null
 StandardError=null
 Restart=always
