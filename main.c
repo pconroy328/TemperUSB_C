@@ -47,7 +47,7 @@
 
 
 
-static  char    *version = "v4.0 [Moving to RV]";
+static  char    *version = "v4.1 [JSON payload changes]";
 
 //
 //      compensation - number of degrees F to add or subtract from the
@@ -127,8 +127,9 @@ void    mqttPublish (double deviceTemp)
 
     static  char    *jsonTemplate = "{ "
     "\"topic\":\"%s\","
+    "\"version\":\"1.0\","
     "\"deviceNum\":%d,"
-    "\"datetime\":\"%s\","
+    "\"dateTime\":\"%s\","
     "\"location\":\"%s\","
     "\"temperature\":%.1f}";
     
