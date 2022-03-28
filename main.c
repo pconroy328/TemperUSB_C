@@ -343,7 +343,7 @@ int TemperGetTemperatureInC(Temper *t, double *tempC)
     temperature += 1152;                    // calibration value
     *tempC = temperature * (125.0 / 32000.0);
     
-    printf( "............. %0.2f\n", *tempC );
+    // printf( "............. %0.2f\n", *tempC );
     return 0;
 }
 
