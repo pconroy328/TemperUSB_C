@@ -69,10 +69,6 @@ static  int     skipIniFile = FALSE;
 
 static  int     mqttPort = 1883;
 static  char    *mqttTopic = "TEMPER";
-//static  int     mqttQoS = 0;
-//static  int     mqttRetainMsgs = FALSE;
-//static  int                 mqttTimeOut = 300;
-
 static  int     MQTT_Connected = FALSE;
 
 static  int     mqttHostSpecified = FALSE;
@@ -417,7 +413,7 @@ int main(int argc, char** argv)
     
     Logger_Initialize( "/tmp/temperusb.log", debugValue );
     Logger_LogWarning( "%s\n", version );
-    Logger_LogWarning( "libmqtrv version: %s\n", MQTT_GetLibraryVersion() );
+    Logger_LogWarning( "libmqttrv version: %s\n", MQTT_GetLibraryVersion() );
     
     //
     // If they passed in an MQTTHost (with the -q option) then do NOT use avahi to find
