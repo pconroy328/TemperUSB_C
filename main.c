@@ -428,7 +428,7 @@ int main(int argc, char** argv)
         //  Not using -q - so find our broker using avahi
         Logger_LogDebug( "mDNS - Looking for an MQTT Broker in the RV first [60 seconds max]\n" );
         if (!MQTT_ConnectRV( &aMosquittoInstance, 60 )) {
-            Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -q option." );
+            Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -q option.\n" );
             Logger_Terminate();
             return( EXIT_FAILURE );
         }
