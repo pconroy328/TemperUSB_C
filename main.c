@@ -163,7 +163,7 @@ void    help (void)
     puts( "Options are:" );
     puts( "    -c <degrees F>       adjust temperature reading by  <+/- degrees F>");
     puts( "    -n <ID>              assign an ID number to this device" );
-    puts( "    -s <Location>        assign a location to this device" );
+    puts( "    -l <Location>        assign a location to this device" );
     puts( "    -v <depth>           enables verbose debugging 1..5" );
     puts( "    -r <seconds>         sets temperature reading interval to <second>, max of 255" );
     puts( "    -h <server>          send MQTT data to this MQTT server" );
