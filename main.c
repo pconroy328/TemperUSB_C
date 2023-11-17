@@ -47,7 +47,7 @@
 
 
 
-static  char    *version = "v4.1 [JSON payload changes]";
+static  char    *version = "v4.2 [call SendRecv]";
 
 //
 //      compensation - number of degrees F to add or subtract from the
@@ -140,7 +140,7 @@ void    mqttPublish (double deviceTemp)
             );
 
     
-    puts( buffer );
+    //puts( buffer );
     MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, 0 );   
 }
 
@@ -481,7 +481,7 @@ int main(int argc, char** argv)
         tempF = (((9.0 / 5.0) * tempC) + 32.0);
         tempF += compensationDegreesF;
 
-        //
+        MQTT_SendReceive( aMosquittoInstance );
         mqttPublish( tempF );
 
         sleep( tempReadInterval );
