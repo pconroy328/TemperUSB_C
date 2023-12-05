@@ -47,7 +47,7 @@
 
 
 
-static  char    *version = "v4.2 [call SendRecv]";
+static  char    *version = "v4.3 [new libmqtt]";
 
 //
 //      compensation - number of degrees F to add or subtract from the
@@ -416,12 +416,12 @@ int main(int argc, char** argv)
     Logger_LogWarning( "libmqttrv version: %s\n", MQTT_GetLibraryVersion() );
     
     //
-    // If they passed in an MQTTHost (with the -q option) then do NOT use avahi to find
+    // If they passed in an MQTTHost (with the -h option) then do NOT use avahi to find
     //  our broker.
     //
     if (!mqttHostSpecified) {
         //
-        //  Not using -q - so find our broker using avahi
+        //  Not using -h - so find our broker using avahi
         Logger_LogDebug( "mDNS - Looking for an MQTT Broker in the RV first [60 seconds max]\n" );
         if (!MQTT_ConnectRV( &aMosquittoInstance, 60 )) {
             Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -q option.\n" );
@@ -481,7 +481,7 @@ int main(int argc, char** argv)
         tempF = (((9.0 / 5.0) * tempC) + 32.0);
         tempF += compensationDegreesF;
 
-        MQTT_SendReceive( aMosquittoInstance );
+        //MQTT_SendReceive( aMosquittoInstance );
         mqttPublish( tempF );
 
         sleep( tempReadInterval );

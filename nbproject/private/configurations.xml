@@ -13,6 +13,8 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>
@@ -28,8 +30,9 @@
           <runcommandpicklistitem>"${OUTPUT_PATH}" -v -n Furnance -i foo.ini -c -3.5 -r 30 -f templog.txt</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" -v -n Furnance -c -3.5 -r 30 -f templog.txt</runcommandpicklistitem>
           <runcommandpicklistitem>"${OUTPUT_PATH}" -v -n Furnace -c -3.5 -r 30 -f templog.txt</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -h gx100.local</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}" -v -n Furnace -c -3.5 -r 30 -f templog.txt</runcommand>
+        <runcommand>"${OUTPUT_PATH}" -h gx100.local</runcommand>
         <rundir></rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>
