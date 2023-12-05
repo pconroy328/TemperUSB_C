@@ -2,6 +2,7 @@
 ###
 make clean
 make
+mv ./dist/Debug/GNU-Linux/temperusb_c ./dist/Debug/GNU-Linux/temperusb
 
 sudo cp temperusb.service /etc/systemd/system/.
 sudo chmod 644 /etc/systemd/system/temperusb.service
