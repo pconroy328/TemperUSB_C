@@ -167,10 +167,10 @@ void    help (void)
     puts( "    -t <topic>           use <topic> as the MQTT topic string" );
     
     
-    puts( "" );
+    //puts( "" );
     
-    puts( "" );
-    puts( "Signals" );
+    //puts( "" );
+    //puts( "Signals" );
     //puts( "  Sending USR1 causes the application to close, reset, reopen reread everything" );
     //puts( "  Sending USR2 causes the application to read the INI file" );
     
@@ -304,7 +304,7 @@ static int TemperSendCommand (Temper *t, int a, int b, int c, int d, int e, int 
     ret = usb_control_msg(t->handle, 0x21, 9, 0x200, 0x01, (char *) buf, 32, t->timeout);
     
     if(ret != 32) {
-        Logger_LogError( "usb_control_msg failed" );
+        Logger_LogError( "usb_control_msg failed\n" );
         return -1;
     }
     
@@ -328,13 +328,13 @@ int TemperGetTemperatureInC(Temper *t, double *tempC)
     TemperSendCommand( t, 10, 11, 12, 13, 0, 0, 2, 0 );
     TemperSendCommand( t, 0x54, 0, 0, 0, 0, 0, 0, 0 );
     
-    for (i = 0; i < 7; i++) {
-        TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0 );
+    for (i = 0; i < 7; i += 1) {
+        TemperSendCommand( t, 0, 0, 0, 0, 0, 0, 0, 0 );
     }
     
-    TemperSendCommand(t, 10, 11, 12, 13, 0, 0, 1, 0 );
+    TemperSendCommand( t, 10, 11, 12, 13, 0, 0, 1, 0 );
     
-    ret = TemperGetData(t, buf, 256);
+    ret = TemperGetData( t, buf, 256 );
     if (ret < 2) {
         return -1;
     }
@@ -424,11 +424,13 @@ int main(int argc, char** argv)
         //  Not using -h - so find our broker using avahi
         Logger_LogDebug( "mDNS - Looking for an MQTT Broker in the RV first [60 seconds max]\n" );
         if (!MQTT_ConnectRV( &aMosquittoInstance, 60 )) {
-            Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -q option.\n" );
+            Logger_LogFatal( "Could not find an MQTT Broker via mDNS. Specify broker name on command line with -h option.\n" );
             Logger_Terminate();
             return( EXIT_FAILURE );
         }
-        
+// FATAL  |2023-12-05 14:12:12 -0700|main.c|main:445|Could not find an MQTT Broker on Host [127.0.0.1], Port [1883]
+// FATAL  |2023-12-05 14:12:12 -0700|main.c|main:445|PROGRAM TERMINATIONWARNING|2023-12-05 14:12:20 -0700|main.c|main:415|v4.2 [call SendRecv]
+
         //
         // If we made it this far - we've got one
         strncpy( mqttHost, MQTT_GetCachedBrokerHostName(), sizeof mqttHost );
