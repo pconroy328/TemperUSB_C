@@ -141,7 +141,9 @@ void    mqttPublish (double deviceTemp)
 
     
     puts( buffer );
-    MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, 0 );   
+    if (MQTT_Publish( aMosquittoInstance, mqttTopic, buffer, 0 ) != 0) {
+       exit( 1 );   
+    }
 }
 
 // ------------------------------------------------------------------
