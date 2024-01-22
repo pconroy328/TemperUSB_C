@@ -9,11 +9,11 @@ CND_DISTDIR=dist
 # Debug configuration
 CND_PLATFORM_Debug=GNU-Linux
 CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux
-CND_ARTIFACT_NAME_Debug=temperusb
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/temperusb
+CND_ARTIFACT_NAME_Debug=temperusb_c
+CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/temperusb_c
 CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux/package
-CND_PACKAGE_NAME_Debug=temperusb.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/temperusb.tar
+CND_PACKAGE_NAME_Debug=temperusbc.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/temperusbc.tar
 # Release configuration
 CND_PLATFORM_Release=Cygwin-Windows
 CND_ARTIFACT_DIR_Release=dist/Release/Cygwin-Windows
